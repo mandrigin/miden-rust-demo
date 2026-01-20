@@ -14,18 +14,14 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build
 
-# Clone miden-node at the agglayer-v0.1 tag
-# Source: https://github.com/0xMiden/miden-node/tree/agglayer-v0.1
+# Clone miden-node from agglayer-v0.1 branch
+# Source: https://github.com/0xMiden/miden-node
 RUN git clone --depth 1 --branch agglayer-v0.1 \
     https://github.com/0xMiden/miden-node.git .
 
 # Save the miden-node commit SHA for labeling
 RUN git rev-parse HEAD > /tmp/miden-node-commit.txt && \
     echo "Miden-node commit: $(cat /tmp/miden-node-commit.txt)"
-
-# Copy and apply agglayer faucet genesis patch
-COPY patches/add-agglayer-genesis.sh /tmp/
-RUN chmod +x /tmp/add-agglayer-genesis.sh && /tmp/add-agglayer-genesis.sh
 
 # Build the node binary
 RUN cargo build --release --bin miden-node
@@ -48,12 +44,12 @@ WORKDIR /app
 
 COPY --from=builder /build/target/release/miden-node /usr/local/bin/
 
+# Copy genesis config
+COPY config/genesis.toml /app/genesis.toml
+
 # Add label with miden-node source info
 LABEL org.opencontainers.image.source="https://github.com/0xMiden/miden-node" \
       org.opencontainers.image.ref.name="agglayer-v0.1"
-
-# Copy genesis config
-COPY config/genesis.toml /app/genesis.toml
 
 # gRPC port
 EXPOSE 57291
@@ -69,7 +65,6 @@ RUN printf '%s\n' \
     'DATA_DIR="${MIDEN_NODE_DATA_DIRECTORY:-/data}"' \
     'ACCOUNTS_DIR="${MIDEN_NODE_ACCOUNTS_DIRECTORY:-/accounts}"' \
     'RPC_URL="${MIDEN_NODE_RPC_URL:-http://0.0.0.0:57291}"' \
-    'GENESIS_FILE="/app/genesis.toml"' \
     '' \
     '# Log miden-node version info' \
     'echo "=== Miden Node Startup ==="' \
@@ -77,21 +72,13 @@ RUN printf '%s\n' \
     '    echo "Miden-node commit: $(cat /app/miden-node-commit.txt)"' \
     'fi' \
     '' \
-    '# Dump genesis.toml contents for debugging' \
-    'echo ""' \
-    'echo "=== Genesis Config ($GENESIS_FILE) ==="' \
-    'cat "$GENESIS_FILE"' \
-    'echo ""' \
-    'echo "=== End Genesis Config ==="' \
-    'echo ""' \
-    '' \
     '# Bootstrap if data directory is empty (no database yet)' \
     'if [ ! -d "$DATA_DIR/db" ]; then' \
     '    echo "Bootstrapping miden-node..."' \
     '    miden-node bundled bootstrap \' \
+    '        --genesis-config-file /app/genesis.toml \' \
     '        --data-directory "$DATA_DIR" \' \
-    '        --accounts-directory "$ACCOUNTS_DIR" \' \
-    '        --genesis-config-file "$GENESIS_FILE"' \
+    '        --accounts-directory "$ACCOUNTS_DIR"' \
     '    echo "Bootstrap complete."' \
     '    echo ""' \
     '    echo "=== Accounts Created at Bootstrap ==="' \

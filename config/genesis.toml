@@ -1,0 +1,20 @@
+timestamp = 1717344256
+version   = 1
+
+[native_faucet]
+decimals   = 3
+max_supply = 100_000_000
+symbol     = "MIDEN"
+
+[fee_parameters]
+verification_base_fee = 0
+
+[[fungible_faucet]]
+decimals     = 3
+max_supply   = 100_000_000
+storage_mode = "public"
+symbol       = "POC"
+
+[[wallet]]
+assets       = [{ amount = 999_000, symbol = "MIDEN" }]
+storage_mode = "private"
