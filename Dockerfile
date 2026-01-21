@@ -14,9 +14,9 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build
 
-# Clone miden-node from agglayer-v0.1 branch
+# Clone miden-node from exp-agglayer-v0.2 branch
 # Source: https://github.com/0xMiden/miden-node
-RUN git clone --depth 1 --branch agglayer-v0.1 \
+RUN git clone --depth 1 --branch exp-agglayer-v0.2 \
     https://github.com/0xMiden/miden-node.git .
 
 # Save the miden-node commit SHA for labeling
@@ -49,7 +49,7 @@ COPY config/genesis.toml /app/genesis.toml
 
 # Add label with miden-node source info
 LABEL org.opencontainers.image.source="https://github.com/0xMiden/miden-node" \
-      org.opencontainers.image.ref.name="agglayer-v0.1"
+      org.opencontainers.image.ref.name="exp-agglayer-v0.2"
 
 # gRPC port
 EXPOSE 57291
@@ -72,8 +72,17 @@ RUN printf '%s\n' \
     '    echo "Miden-node commit: $(cat /app/miden-node-commit.txt)"' \
     'fi' \
     '' \
-    '# Bootstrap if data directory is empty (no database yet)' \
-    'if [ ! -d "$DATA_DIR/db" ]; then' \
+    '# Check if already bootstrapped (either db exists OR accounts dir has files)' \
+    'NEEDS_BOOTSTRAP=true' \
+    'if [ -d "$DATA_DIR/db" ]; then' \
+    '    echo "Found existing database at $DATA_DIR/db, skipping bootstrap."' \
+    '    NEEDS_BOOTSTRAP=false' \
+    'elif [ -d "$ACCOUNTS_DIR" ] && [ "$(ls -A $ACCOUNTS_DIR 2>/dev/null)" ]; then' \
+    '    echo "Found existing accounts at $ACCOUNTS_DIR, skipping bootstrap."' \
+    '    NEEDS_BOOTSTRAP=false' \
+    'fi' \
+    '' \
+    'if [ "$NEEDS_BOOTSTRAP" = true ]; then' \
     '    echo "Bootstrapping miden-node..."' \
     '    miden-node bundled bootstrap \' \
     '        --genesis-config-file /app/genesis.toml \' \
