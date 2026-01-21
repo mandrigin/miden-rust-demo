@@ -72,8 +72,17 @@ RUN printf '%s\n' \
     '    echo "Miden-node commit: $(cat /app/miden-node-commit.txt)"' \
     'fi' \
     '' \
-    '# Bootstrap if data directory is empty (no database yet)' \
-    'if [ ! -d "$DATA_DIR/db" ]; then' \
+    '# Check if already bootstrapped (either db exists OR accounts dir has files)' \
+    'NEEDS_BOOTSTRAP=true' \
+    'if [ -d "$DATA_DIR/db" ]; then' \
+    '    echo "Found existing database at $DATA_DIR/db, skipping bootstrap."' \
+    '    NEEDS_BOOTSTRAP=false' \
+    'elif [ -d "$ACCOUNTS_DIR" ] && [ "$(ls -A $ACCOUNTS_DIR 2>/dev/null)" ]; then' \
+    '    echo "Found existing accounts at $ACCOUNTS_DIR, skipping bootstrap."' \
+    '    NEEDS_BOOTSTRAP=false' \
+    'fi' \
+    '' \
+    'if [ "$NEEDS_BOOTSTRAP" = true ]; then' \
     '    echo "Bootstrapping miden-node..."' \
     '    miden-node bundled bootstrap \' \
     '        --genesis-config-file /app/genesis.toml \' \
